@@ -1,170 +1,125 @@
 import tkinter as tk
-from tkinter import messagebox, simpledialog
-import json
-import os
+from tkinter import ttk
+from tkinter import messagebox
 
 
-class SchoolJournalGUI:
+class DiaryApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Электронный журнал")
-        self.journal_file = "journal.json"
-        self.journal = self.load_journal()
 
-        # добавление новых кнопок
-        self.edit_button = tk.Button(root, text="Редактировать оценку", command=self.edit_grade)
-        self.edit_button.pack(pady=5)
+    root.title("Электронный дневник")
 
-        self.delete_button = tk.Button(root, text="Удалить оценку", command=self.delete_grade)
-        self.delete_button.pack(pady=5)
+    self.notes = {}  # словарь для хранения заметок
+    self.current_note = None  # для отслеживания текущей выбранной заметки
 
-        # UI элементы
-        self.label = tk.Label(root, text="Электронный журнал", font=("Arial", 16))
-        self.label.pack(pady=10)
+    # Создание виджетов
+    self.note_label = ttk.Label(root, text="Запись:")
+    self.note_text = tk.Text(root, height=10, width=50)
+    self.rating_label = ttk.Label(root, text="Оценка (1-5):")
+    self.rating_scale = tk.Scale(root, from_=1, to=5, orient=tk.HORIZONTAL)
+    self.add_button = ttk.Button(root, text="Добавить запись", command=self.add_note)
+    self.view_button = ttk.Button(root, text="Просмотреть записи", command=self.view_notes)
+    self.edit_button = ttk.Button(root, text="Редактировать запись", command=self.edit_note, state=tk.DISABLED)
+    self.delete_button = ttk.Button(root, text="Удалить запись", command=self.delete_note, state=tk.DISABLED)
 
-        self.name_button = tk.Button(root, text="Добавить ученика", command=self.add_student)
-        self.name_button.pack(pady=5)
+    # Размещение виджетов в окне
+    self.note_label.grid(row=0, column=0, sticky=tk.W)
+    self.note_text.grid(row=1, column=0, columnspan=2)
+    self.rating_label.grid(row=2, column=0, sticky=tk.W)
+    self.rating_scale.grid(row=3, column=0, columnspan=2)
+    self.add_button.grid(row=4, column=0)
+    self.view_button.grid(row=4, column=1)
+    self.edit_button.grid(row=5, column=0)
+    self.delete_button.grid(row=5, column=1)
 
-        self.grade_button = tk.Button(root, text="Добавить оценку", command=self.add_grade)
-        self.grade_button.pack(pady=5)
+    def add_note(self):
+        note = self.note_text.get("1.0", tk.END).strip()
 
-        self.view_button = tk.Button(root, text="Посмотреть оценки", command=self.view_grades)
-        self.view_button.pack(pady=5)
+    rating = self.rating_scale.get()
+    if note:
+        self.notes[note] = rating
+    messagebox.showinfo("Сохранено", "Запись добавлена!")
+    self.note_text.delete("1.0", tk.END)
+    self.rating_scale.set(1)
+    self.enable_edit_delete_buttons(False)
+    else:
+    messagebox.showerror("Ошибка", "Запись не может быть пустой!")
 
-        self.avg_button = tk.Button(root, text="Средняя оценка", command=self.average_grade)
-        self.avg_button.pack(pady=5)
+    def view_notes(self):
+        if self.notes:
+            self.view_window = tk.Toplevel(self.root)
 
-        self.quit_button = tk.Button(root, text="Выход", command=self.on_quit)
-        self.quit_button.pack(pady=10)
+    self.view_window.title("Все записи")
+    self.listbox = tk.Listbox(self.view_window, width=50, height=10)
+    self.listbox.pack(padx=10, pady=10)
+    for note in self.notes:
+        self.listbox.insert(tk.END, note)
+    self.listbox.bind("<<ListboxSelect>>", self.on_note_select)
+    else:
+    messagebox.showinfo("Пусто", "Нет сохраненных записей.")
+    self.enable_edit_delete_buttons(False)
 
-        self.root.protocol("WM_DELETE_WINDOW", self.on_quit)  # Обработка закрытия окна
+    def on_note_select(self, event):
+        selected_note = self.listbox.get(self.listbox.curselection())
 
-    # метод редактировать
-    def edit_grade(self):
-        name = simpledialog.askstring("Редактирование", "Введите имя ученика:")
-        if name not in self.journal:
-            messagebox.showerror("Ошибка", "Ученик не найден.")
-            return
-        subject = simpledialog.askstring("Редактирование", "Введите предмет:")
-        if subject not in self.journal[name]:
-            messagebox.showerror("Ошибка", "Предмет не найден.")
-            return
-        grades = self.journal[name][subject]
-        if not grades:
-            messagebox.showinfo("Редактирование", "Нет оценок для редактирования.")
-            return
+    self.current_note = selected_note
+    self.enable_edit_delete_buttons(True)
 
-        grade_index = simpledialog.askinteger("Редактирование", f"Введите номер оценки (1 - {len(grades)}):")
-        if not grade_index or not (1 <= grade_index <= len(grades)):
-            messagebox.showerror("Ошибка", "Неверный номер.")
-            return
+    def edit_note(self):
+        if self.current_note:
+            self.edit_window = tk.Toplevel(self.root)
 
-        new_grade = simpledialog.askinteger("Редактирование", "Введите новую оценку (1-5):")
-        if not new_grade or not (1 <= new_grade <= 5):
-            messagebox.showerror("Ошибка", "Неверная оценка.")
-            return
+    self.edit_window.title("Редактировать запись")
+    self.edit_note_label = ttk.Label(self.edit_window, text="Запись:")
+    self.edit_note_text = tk.Text(self.edit_window, height=10, width=50)
+    self.edit_note_text.insert("1.0", self.current_note)
+    self.edit_rating_label = ttk.Label(self.edit_window, text="Оценка (1-5):")
+    self.edit_rating_scale = tk.Scale(self.edit_window, from_=1, to=5, orient=tk.HORIZONTAL)
+    self.edit_rating_scale.set(self.notes[self.current_note])
+    self.save_button = ttk.Button(self.edit_window, text="Сохранить", command=self.save_edited_note)
 
-        grades[grade_index - 1] = new_grade
-        messagebox.showinfo("Редактирование", "Оценка обновлена.")
+    self.edit_note_label.grid(row=0, column=0, sticky=tk.W)
+    self.edit_note_text.grid(row=1, column=0)
+    self.edit_rating_label.grid(row=2, column=0, sticky=tk.W)
+    self.edit_rating_scale.grid(row=3, column=0)
+    self.save_button.grid(row=4, column=0)
+    else:
+    messagebox.showerror("Ошибка", "Нет выбранной заметки для редактирования.")
 
-    # метод удалить
-    def delete_grade(self):
-        name = simpledialog.askstring("Удаление", "Введите имя ученика:")
-        if name not in self.journal:
-            messagebox.showerror("Ошибка", "Ученик не найден.")
-            return
-        subject = simpledialog.askstring("Удаление", "Введите предмет:")
-        if subject not in self.journal[name]:
-            messagebox.showerror("Ошибка", "Предмет не найден.")
-            return
-        grades = self.journal[name][subject]
-        if not grades:
-            messagebox.showinfo("Удаление", "Нет оценок для удаления.")
-            return
+    def save_edited_note(self):
+        new_note = self.edit_note_text.get("1.0", tk.END).strip()
 
-        grade_index = simpledialog.askinteger("Удаление", f"Введите номер оценки для удаления (1 - {len(grades)}):")
-        if not grade_index or not (1 <= grade_index <= len(grades)):
-            messagebox.showerror("Ошибка", "Неверный номер.")
-            return
+    new_rating = self.edit_rating_scale.get()
+    if new_note:
+        self.notes.pop(self.current_note)
+    self.notes[new_note] = new_rating
+    messagebox.showinfo("Сохранено", "Запись изменена!")
+    self.edit_window.destroy()
+    self.view_window.destroy()
+    self.enable_edit_delete_buttons(False)
+    else:
+    messagebox.showerror("Ошибка", "Запись не может быть пустой!")
 
-        removed = grades.pop(grade_index - 1)
-        messagebox.showinfo("Удаление", f"Оценка {removed} удалена.")
+    def delete_note(self):
+        if self.current_note:
+            result = messagebox.askyesno("Удалить", "Вы уверены, что хотите удалить эту запись?")
 
-    def load_journal(self):
-        if os.path.exists(self.journal_file):
-            try:
-                with open(self.journal_file, "r", encoding="utf-8") as f:
-                    return json.load(f)
-            except Exception as e:
-                messagebox.showerror("Ошибка загрузки", f"Не удалось загрузить данные: {e}")
-        return {}
+    if result:
+        self.notes.pop(self.current_note)
+    messagebox.showinfo("Удалено", "Запись удалена!")
+    self.view_window.destroy()
+    self.enable_edit_delete_buttons(False)
+    else:
+    messagebox.showerror("Ошибка", "Нет выбранной заметки для удаления.")
 
-    def save_journal(self):
-        try:
-            with open(self.journal_file, "w", encoding="utf-8") as f:
-                json.dump(self.journal, f, ensure_ascii=False, indent=4)
-        except Exception as e:
-            messagebox.showerror("Ошибка сохранения", f"Не удалось сохранить данные: {e}")
+    def enable_edit_delete_buttons(self, enable):
+        state = tk.NORMAL if enable else tk.DISABLED
 
-    def on_quit(self):
-        self.save_journal()
-        self.root.destroy()
+    self.edit_button.config(state=state)
+    self.delete_button.config(state=state)
 
-    def add_student(self):
-        name = simpledialog.askstring("Добавить ученика", "Введите имя ученика:")
-        if name:
-            if name not in self.journal:
-                self.journal[name] = {}
-                messagebox.showinfo("Успех", f"Ученик '{name}' добавлен.")
-            else:
-                messagebox.showwarning("Внимание", f"Ученик '{name}' уже существует.")
 
-    def add_grade(self):
-        name = simpledialog.askstring("Оценка", "Введите имя ученика:")
-        if name not in self.journal:
-            messagebox.showerror("Ошибка", "Ученик не найден.")
-            return
-        subject = simpledialog.askstring("Оценка", "Введите предмет:")
-        grade_str = simpledialog.askstring("Оценка", "Введите оценку (1-5):")
-        try:
-            grade = int(grade_str)
-            if 1 <= grade <= 5:
-                if subject not in self.journal[name]:
-                    self.journal[name][subject] = []
-                self.journal[name][subject].append(grade)
-                messagebox.showinfo("Успех", f"Оценка добавлена для '{name}' по '{subject}'.")
-            else:
-                messagebox.showerror("Ошибка", "Оценка должна быть от 1 до 5.")
-        except (ValueError, TypeError):
-            messagebox.showerror("Ошибка", "Введите корректное число.")
-
-    def view_grades(self):
-        name = simpledialog.askstring("Просмотр", "Введите имя ученика:")
-        if name not in self.journal:
-            messagebox.showerror("Ошибка", "Ученик не найден.")
-            return
-        result = f"Оценки ученика '{name}':\n"
-        for subject, grades in self.journal[name].items():
-            result += f"{subject}: {grades}\n"
-        messagebox.showinfo("Оценки", result)
-
-    def average_grade(self):
-        name = simpledialog.askstring("Средняя оценка", "Введите имя ученика:")
-        if name not in self.journal:
-            messagebox.showerror("Ошибка", "Ученик не найден.")
-            return
-        total, count = 0, 0
-        for grades in self.journal[name].values():
-            total += sum(grades)
-            count += len(grades)
-        if count == 0:
-            messagebox.showinfo("Средняя оценка", "Нет оценок.")
-        else:
-            avg = total / count
-            messagebox.showinfo("Средняя оценка", f"Средняя оценка ученика '{name}': {avg:.2f}")
-
-if name == "__main__":
-    root = tk.Tk()
-    app = SchoolJournalGUI(root)
-    root.mainloop()
+root = tk.Tk()
+app = DiaryApp(root)
+root.mainloop()
 
