@@ -189,11 +189,18 @@ class DiaryApp:
         self.button_show_info = tk.Button(self.root, text="Показать информацию", command=self.show_info)
         self.button_show_info.pack(pady=5)
 
+        #Поле поиска
+        self.search_label = tk.Label(self.root, text="Поиск предмета:")
+        self.search_label.pack()
+        self.search_entry = tk.Entry(self.root, width=30)
+        self.search_entry.pack()
+        self.search_button = tk.Button(self.root, text="Поиск", command=self.search_subject)
+        self.search_button.pack(pady=5)
+
         self.logout_button = tk.Button(self.root, text="Выйти", command=self.logout)
         self.logout_button.pack(pady=5)
 
         self.subjects = {}  # Словарь для хранения предметов и оценок
-
 
     def show_student_grades(self):
         self.clear_window()
@@ -207,6 +214,14 @@ class DiaryApp:
 
         self.grades_listbox = tk.Listbox(self.root, width=50, height=15)
         self.grades_listbox.pack(pady=10)
+
+        #Поле поиска
+        self.search_label = tk.Label(self.root, text="Поиск предмета:")
+        self.search_label.pack()
+        self.search_entry = tk.Entry(self.root, width=30)
+        self.search_entry.pack()
+        self.search_button = tk.Button(self.root, text="Поиск", command=self.search_student_subject)
+        self.search_button.pack(pady=5)
 
         self.cursor.execute("SELECT subject, grade FROM grades WHERE user_id=?", (self.current_user_id,))
         grades = self.cursor.fetchall()
@@ -299,6 +314,34 @@ class DiaryApp:
         self.current_user_id = None
         self.current_user_role = None
         self.create_login_page()
+
+    def search_subject(self):
+        search_term = self.search_entry.get().lower()
+        self.listbox.delete(0, tk.END)
+        name = self.entry_name.get()
+        surname = self.entry_surname.get()
+        klass = self.entry_class.get()
+        self.cursor.execute("SELECT id FROM users WHERE name=? AND surname=? AND class=?", (name, surname, klass))
+        result = self.cursor.fetchone()
+        if result:
+           user_id = result[0]
+           self.cursor.execute("SELECT subject, grade FROM grades WHERE user_id=?", (user_id,))
+           grades = self.cursor.fetchall()
+           for subject, grade in grades:
+               if search_term in subject.lower():
+                  self.listbox.insert(tk.END, f"{subject}: {grade}")
+        else:
+           messagebox.showerror("Ошибка", "Пользователь не найден.")
+
+    def search_student_subject(self):
+        search_term = self.search_entry.get().lower()
+        self.grades_listbox.delete(0, tk.END)
+        self.cursor.execute("SELECT subject, grade FROM grades WHERE user_id=?", (self.current_user_id,))
+        grades = self.cursor.fetchall()
+
+        for subject, grade in grades:
+            if search_term in subject.lower():
+                self.grades_listbox.insert(tk.END, f"{subject}: {grade}")
 
 if __name__ == "__main__":
     root = tk.Tk()
